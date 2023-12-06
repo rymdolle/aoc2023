@@ -1,11 +1,13 @@
+#include <algorithm>
 #include <fstream>
 #include <map>
 #include <string>
 #include <iostream>
 #include <tuple>
 #include <vector>
+#include <ranges>
 
-typedef std::vector<std::tuple<long,long,long>> type_t;
+typedef std::vector<std::tuple<long, long, long>> type_t;
 
 long find(long seed, std::vector<type_t> &types) {
   for (auto type : types) {
@@ -17,6 +19,25 @@ long find(long seed, std::vector<type_t> &types) {
     }
   }
   return seed;
+}
+
+long rfind(long min, std::map<long, long> seeds, std::vector<type_t> &types) {
+  for (long location = 0; location < min; ++location) {
+    long seed = location;
+    for (auto type : std::views::reverse(types)) {
+      for (auto [src, dst, range] : type) {
+        if (seed >= src && seed < src + range) {
+          seed = dst + (seed - src);
+          break;
+        }
+      }
+    }
+    for (auto [start, end] : seeds) {
+      if (seed >= start && seed < end)
+        return location;
+    }
+  }
+  return min;
 }
 
 int main(int argc, char *argv[])
@@ -51,35 +72,21 @@ int main(int argc, char *argv[])
     types[types.size()-1].push_back({dst, src, range});
   }
 
-  std::vector<long> mapped;
-  std::vector<long> mapped_range;
-  for (int i = 0; i < seeds.size(); ++i) {
-    long seed = seeds[i];
-    if (i % 2 == 0) {
-      long seed_range = seeds[i+1];
-      long min = seed;
-      for (int j = 0; j < seed_range; ++j) {
-        min = std::min(min, find(seed + j, types));
-      }
-      mapped_range.push_back(min);
-    }
-    seed = find(seed, types);
-    mapped.push_back(seed);
+  std::vector<long> locations;
+  for (auto seed : seeds) {
+    long location = find(seed, types);
+    locations.push_back(location);
+  }
+  long closest = *std::min_element(locations.begin(), locations.end());
+
+  std::map<long,long> seed_range;
+  for (int i = 0; i < seeds.size(); i += 2) {
+      long start = seeds[i];
+      long range = seeds[i+1];
+      seed_range[start] = start + range;
   }
 
-  long lowest = mapped[0];
-  for (auto s : mapped) {
-    if (s < lowest)
-      lowest = s;
-  }
-
-  long lowest_range = mapped_range[0];
-  for (auto s : mapped_range) {
-    if (s < lowest_range)
-      lowest_range = s;
-  }
-
-  std::cout << "part1: " << lowest << '\n';
-  std::cout << "part2: " << lowest_range << '\n';
+  std::cout << "part1: " << closest << '\n';
+  std::cout << "part2: " << rfind(closest, seed_range, types) << '\n';
   return 0;
 }
