@@ -3,75 +3,82 @@
 #include <iostream>
 #include <iomanip>
 #include <vector>
+#include <map>
+#include <algorithm>
 
 int main(int argc, char *argv[])
 {
-  std::ifstream file("example.txt");
+  std::ifstream file("input.txt");
   std::string line;
   std::vector<std::string> map;
-  std::vector<int> empty_row;
-  std::vector<int> empty_col;
+  std::map<int, bool> empty_row;
+  std::map<int, bool> empty_col;
   std::vector<std::pair<int,int>> galaxies;
+
+  // Read rows and find empty
   for (int row{0}; std::getline(file, line); ++row) {
     map.push_back(line);
     bool empty = true;
     for (int col{0}; col < line.length(); ++col)
       if (line[col] != '.')
         empty = false;
-    if (empty) {
-      empty_row.push_back(row);
-      map.push_back(std::string(line.length(), '.'));
-    }
+
+    if (empty)
+      empty_row[row] = true;
   }
 
+  // Find empty cols and galaxies
   for (int col{0}; col < map[0].length(); ++col) {
     bool empty = true;
-    int row{0};
-    for (row = 0; row < map.size(); ++row) {
+    for (int row{0}; row < map.size(); ++row) {
       if (map[row][col] != '.') {
         galaxies.push_back({col,row});
         empty = false;
       }
     }
 
-    if (empty) {
-      for (row = 0; row < map.size(); ++row) {
-        empty_col.push_back(col);
-        map[row].insert(col, ".");
-      }
-
-      ++col;
-    }
+    if (empty)
+      empty_col[col] = true;
   }
 
+  // Construct galaxy pairs
   std::vector<std::pair<std::pair<int,int>, std::pair<int,int>>> pairs;
-  std::cout << galaxies.size() << '\n';
-  for (int i{0}; i < galaxies.size(); ++i) {
-    for (int j{i+1}; j < galaxies.size(); ++j) {
+  for (int i{0}; i < galaxies.size(); ++i)
+    for (int j{i+1}; j < galaxies.size(); ++j)
       pairs.push_back({galaxies[i], galaxies[j]});
-    }
-  }
 
-  std::cout << pairs.size() << '\n';
-  int total = 0;
+  long total1 = 0;
+  long total2 = 0;
   for (auto [p1,p2] : pairs) {
-    int dx = p2.first - p1.first;
-    int dy = p2.second - p1.second;
-    std::cout <<  std::setw(2) << dx + dy  << ' '
-              <<  std::setw(2) << dx << ' ' << std::setw(2) << dy << ' '
-              <<  std::setw(2) << p1.first << ','
-              <<  std::setw(2) << p1.second << ' '
-              <<  std::setw(2) << p2.first << ','
-              <<  std::setw(2) << p2.second << '\n';
+    // Find the pair distance
+    int dx = std::abs(p2.first - p1.first);
+    int dy = std::abs(p2.second - p1.second);
 
-    total += std::abs(dx) + std::abs(dy);
+    // Find empty cols
+    int ec = 0;
+    for (int i = std::min(p1.first, p2.first);
+         i < std::max(p1.first, p2.first); ++i) {
+      if (empty_col.count(i) > 0)
+        ++ec;
+    }
+
+    // Find empty rows
+    int er = 0;
+    for (int i = std::min(p1.second, p2.second);
+         i < std::max(p1.second, p2.second); ++i) {
+      if (empty_row.count(i) > 0)
+        ++er;
+    }
+
+    // Sum distance and add an extra row and col for empty space
+    total1 += dx + ec + dy + er;
+
+    // Sum distance as in part 1 but multiply empty space by a million
+    total2 += dx + ec * (1e6 - 1) + dy + er * (1e6 - 1);
   }
 
-  for (auto row : map) {
-    std::cout << row << '\n';
-  }
-
-  std::cout << "part1: " << total << '\n';
+  std::cout << "part1: " << total1 << '\n';
+  std::cout << "part2: " << total2 << '\n';
 
   return 0;
 }
